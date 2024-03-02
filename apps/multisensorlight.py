@@ -24,6 +24,7 @@ import hassapi as hass
 
 class MultiSensorLightControl(hass.Hass):
     def initialize(self):
+        self.set_namespace('hass')
         self.sensors = []
         self.lights = []
         self.states = {}
@@ -36,38 +37,43 @@ class MultiSensorLightControl(hass.Hass):
 
         for sensor in self.args['sensors']:
             self.sensors.append(sensor)
-            self.states[sensor] = self.get_state(sensor, namespace="hass")
+            self.states[sensor] = self.get_state(sensor)
             self.log("listening to sensor: {} which has current state: {}".format(sensor, self.states[sensor]))
 
-            self.listen_state(self.state_change, sensor, new='on', namespace="hass")
-            self.listen_state(self.state_change, sensor, new='off', duration=self.light_off_timeout, namespace="hass")
+            self.listen_state(self.state_change, sensor, new='on')
+            self.listen_state(self.state_change, sensor, new='off', duration=self.light_off_timeout)
 
         for light in self.args['lights']:
             self.lights.append(light)
         self.log("affected lights: {}".format(self.lights))
 
     def state_change(self, entity, attribute, old, new, kwargs):
-        for light in self.lights:
-            if new == 'on':
-                self.states[entity] = 'on'
+        self.log("entity: {} new state: {} old state: {}".format(entity, new, old))       
+        self.states[entity] = new
+        
+        all_off = False
+        if new == 'off':
+            all_off = True
+            for sensor in self.sensors:
+                if self.states[sensor] == 'on':
+                    all_off = False
+                    self.log("sensor: {} is still activated, lights will keep current state".format(sensor))
+
+        if all_off == True:
+            for light in self.lights:
+                if light in self.states and self.states[light]['brightness'] is not None:
+                    self.turn_on(light, brightness=self.states[light]['brightness'])
+                else:
+                    self.turn_off(light)
+
+                if light in self.states:
+                    del self.states[light]
+            return
+        elif new == 'on':
+            for light in self.lights:
                 if light not in self.states:
                     self.states[light] = {
-                        'brightness': self.get_state(light, attribute="brightness", namespace="hass")
+                        'brightness': self.get_state(light, attribute="brightness")
                     }
                     self.log("saved state of light {}, brightness: {}".format(light, self.states[light]['brightness']))
-                self.turn_on(light, brightness=self.target_brightness, namespace="hass")
-            if new == 'off':
-                self.states[entity] = 'off'
-                all_off = True
-                for sensor in self.sensors:
-                    if self.states[sensor] == 'on':
-                        all_off = False
-                        self.log("sensor: {} is still activated, lights will keep current state".format(sensor))
-                if all_off == True:
-                    for light in self.lights:
-                        if light in self.states and self.states[light]['brightness'] is not None:
-                            self.turn_on(light, brightness=self.states[light]['brightness'], namespace="hass")
-                        else:
-                            self.turn_off(light, namespace="hass")
-            self.log("light: {} brightness: {}".format(light, self.get_state(light, attribute="brightness", namespace="hass")))
-            self.log("entity: {} new state: {} old state: {}".format(entity, new, old))
+                self.turn_on(light, brightness=self.target_brightness)
