@@ -1,0 +1,11 @@
+---
+multi_sensor_light_control:
+  module: multisensorlight
+  class: MultiSensorLightControl
+  light_brightness: 100
+  light_off_timeout: 10
+  sensors:
+    - input_boolean.stairs_presence_state
+    - input_boolean.couch_area_presence_state
+  lights:
+    - light.couch_light_light

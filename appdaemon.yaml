@@ -1,0 +1,17 @@
+---
+appdaemon:
+  latitude: !secret latitude
+  longitude: !secret longitude
+  elevation: 45
+  time_zone: America/Los_Angeles
+  plugins:
+    HASS:
+      type: hass
+      namespace: hass
+      token: !secret ha_token
+      ha_url: http://homeassistant.lan:8123
+http:
+  url: http://127.0.0.1:5050
+admin:
+api:
+hadashboard:
